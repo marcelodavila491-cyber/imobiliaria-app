@@ -6,7 +6,7 @@ WHATSAPP_NUMERO = "5511986738169"
 SENHA_ADMIN = "640491"
 
 SUPABASE_URL = "https://supabase.co"
-SUPABASE_KEY = "sb_publishable_zlpN6FMkBJ45aMIlHNFsbA_K7i8APrR"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxqbm96eGdjYm5qbGxiZHFpdmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwMzM4NjEsImV4cCI6MjExMDYwOTg2MX0.fk57qv7OADgWsmZpeEY9Txzih58J1q8HGZDRFbTB6O0"
 
 @st.cache_resource
 def conectar():
