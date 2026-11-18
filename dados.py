@@ -5,7 +5,7 @@ NOME_EMPRESA = "MMI IMÓVEIS"
 WHATSAPP_NUMERO = "5511986738169"
 SENHA_ADMIN = "640491"
 
-SUPABASE_URL = "ljnozxgcbnjllbdqivab"
+SUPABASE_URL = "https://ljnozxgcbnjllbdqivab.supabase.co"
 SUPABASE_KEY = "sb_publishable_zlpN6FMkBJ45aMIlHNFsbA_K7i8APrR"
 
 @st.cache_resource
