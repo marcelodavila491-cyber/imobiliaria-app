@@ -10,7 +10,7 @@ iniciar_banco()
 db = conectar()
 
 st.sidebar.title(f"🏢 {NOME_EMPRESA}")
-menu = st.sidebar.radio("Menu", ["🔍 Vitrine", "➕ Cadastrar Imóvel", "👔 Corretores e Visitas", "💰 Comissões"])
+menu = st.sidebar.radio("Menu", ["🔍 Vitrine", "📝 Propostas Recebidas", "➕ Cadastrar Imóvel", "👔 Corretores e Visitas", "💰 Comissões"])
 st.sidebar.markdown("**WhatsApp:** (11) 98673-8169")
 
 def verificar_senha():
@@ -22,13 +22,10 @@ def verificar_senha():
         st.rerun()
     return False
 
-def salvar_fotos(arquivos):
-    urls = []
-    for arq in arquivos:
-        nome = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_{arq.name.replace(' ', '_')}"
-        db.storage.from_("fotos-imoveis").upload(nome, arq.getvalue(), {"content-type": arq.type})
-        urls.append(db.storage.from_("fotos-imoveis").get_public_url(nome))
-    return urls
+def subir_arquivo(arq, bucket):
+    nome = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_{arq.name.replace(' ', '_')}"
+    db.storage.from_(bucket).upload(nome, arq.getvalue(), {"content-type": arq.type})
+    return db.storage.from_(bucket).get_public_url(nome)
 
 if menu == "🔍 Vitrine":
     st.title(f"🏢 {NOME_EMPRESA} — Encontre seu imóvel")
@@ -63,6 +60,7 @@ if menu == "🔍 Vitrine":
         col.caption(f"Aluguel: R$ {im['aluguel']:,.2f} | Cond: R$ {im['condominio']:,.2f} | IPTU: R$ {im['iptu']:,.2f}")
         msg = urllib.parse.quote(f"Olá! Vi o imóvel '{im['titulo']}' (#{im['id']}) na MMI IMÓVEIS.")
         col.markdown(f'<a href="https://wa.me{WHATSAPP_NUMERO}?text={msg}" target="_blank" class="btn-whats">💬 Chamar no WhatsApp</a>', unsafe_allow_html=True)
+
         with col.expander("📅 Agendar Visita"):
             with st.form(f"v_{im['id']}"):
                 nc = st.text_input("Seu Nome")
@@ -72,7 +70,40 @@ if menu == "🔍 Vitrine":
                     db.table("visitas").insert({"imovel": im["titulo"], "cliente": nc, "whatsapp": tc, "data_visita": str(dt)}).execute()
                     st.success("Visita agendada!")
                     st.rerun()
+
+        with col.expander("📝 Fazer Proposta Online"):
+            with st.form(f"p_{im['id']}"):
+                p_nome = st.text_input("Nome Completo*")
+                p_whats = st.text_input("WhatsApp*")
+                p_val = st.number_input("Valor Proposto de Aluguel (R$)*", 100.0, 50000.0, float(im["aluguel"]), 50.0)
+                p_renda = st.number_input("Sua Renda Mensal Comprovada (R$)*", 500.0, 200000.0, float(total * 3), 200.0)
+                p_ent = st.date_input("Previsão de Entrada", min_value=date.today())
+                p_doc = st.file_uploader("Anexar Documento / Comprovante de Renda (PDF ou Foto)", type=["pdf", "jpg", "jpeg", "png"])
+                if st.form_submit_button("Enviar Proposta") and p_nome and p_whats:
+                    doc_link = subir_arquivo(p_doc, "documentos-clientes") if p_doc else "Sem anexo"
+                    db.table("propostas").insert({"imovel_id": im["id"], "imovel": im["titulo"], "cliente": p_nome, "whatsapp": p_whats, "valor_proposto": p_val, "renda_mensal": p_renda, "data_entrada": str(p_ent), "documento_url": doc_link}).execute()
+                    st.success("Proposta enviada com sucesso! Nossa equipe analisará e retornará.")
         col.markdown('</div>', unsafe_allow_html=True)
+
+elif menu == "📝 Propostas Recebidas" and verificar_senha():
+    st.title("📝 Gestão de Propostas e Análise de Crédito")
+    if not st.session_state.propostas:
+        st.info("Nenhuma proposta recebida ainda.")
+    else:
+        for prop in st.session_state.propostas:
+            with st.container(border=True):
+                st.subheader(f"Imóvel: {prop['imovel']} — Status: {prop['status']}")
+                st.write(f"👤 **Cliente:** {prop['cliente']} | 📱 **WhatsApp:** {prop['whatsapp']}")
+                st.write(f"💰 **Oferta:** R$ {prop['valor_proposto']:,.2f} | 💵 **Renda:** R$ {prop['renda_mensal']:,.2f} | 📅 **Entrada:** {prop['data_entrada']}")
+                if prop.get("documento_url") and prop["documento_url"] != "Sem anexo":
+                    st.markdown(f"[📎 Abrir Documento Anexado pelo Cliente]({prop['documento_url']})")
+                c_ap, c_rec = st.columns(2)
+                if c_ap.button("✅ Aprovar Proposta", key=f"ap_{prop['id']}"):
+                    db.table("propostas").update({"status": "Aprovada"}).eq("id", prop["id"]).execute()
+                    st.rerun()
+                if c_rec.button("❌ Recusar Proposta", key=f"rec_{prop['id']}"):
+                    db.table("propostas").update({"status": "Recusada"}).eq("id", prop["id"]).execute()
+                    st.rerun()
 
 elif menu == "➕ Cadastrar Imóvel" and verificar_senha():
     st.title("Cadastrar Imóvel")
@@ -92,11 +123,11 @@ elif menu == "➕ Cadastrar Imóvel" and verificar_senha():
         alu = v1.number_input("Aluguel*", 100.0, 50000.0, 2000.0, 50.0)
         cond = v2.number_input("Condomínio", 0.0, 20000.0, 400.0, 10.0)
         iptu = v3.number_input("IPTU", 0.0, 10000.0, 50.0, 10.0)
-        arquivos = st.file_uploader("Selecionar Fotos do Celular/PC (pode escolher várias)*", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True)
+        arquivos = st.file_uploader("Selecionar Fotos do Celular/PC*", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True)
         if st.form_submit_button("Publicar Imóvel") and pn and tit and bairro:
-            urls = salvar_fotos(arquivos) if arquivos else ["https://unsplash.com"]
+            urls = [subir_arquivo(a, "fotos-imoveis") for a in arquivos] if arquivos else ["https://unsplash.com"]
             db.table("imoveis").insert({"titulo": tit, "tipo": tipo, "bairro": bairro, "cidade": cidade, "aluguel": alu, "condominio": cond, "iptu": iptu, "quartos": q, "vagas": v, "aceita_pet": pet, "proprietario": pn, "telefone_prop": pt, "foto": urls[0], "fotos": urls, "status": "Disponível"}).execute()
-            st.success("Imóvel e fotos salvos com sucesso!")
+            st.success("Imóvel publicado!")
             st.rerun()
 
 elif menu == "👔 Corretores e Visitas" and verificar_senha():
