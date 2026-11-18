@@ -1,8 +1,16 @@
 import streamlit as st
+from supabase import create_client
 
 NOME_EMPRESA = "MMI IMÓVEIS"
 WHATSAPP_NUMERO = "5511986738169"
 SENHA_ADMIN = "640491"
+
+SUPABASE_URL = "ljnozxgcbnjllbdqivab"
+SUPABASE_KEY = "sb_publishable_zlpN6FMkBJ45aMIlHNFsbA_K7i8APrR"
+
+@st.cache_resource
+def conectar():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ESTILO_CSS = """
 <style>
@@ -15,16 +23,10 @@ ESTILO_CSS = """
 """
 
 def iniciar_banco():
-    if "imoveis" not in st.session_state:
-        st.session_state.imoveis = [
-            {"id": 101, "titulo": "Apartamento Moderno próximo ao Metrô", "tipo": "Apartamento", "bairro": "Vila Matilde", "cidade": "São Paulo", "aluguel": 2200.0, "condominio": 450.0, "iptu": 80.0, "quartos": 2, "vagas": 1, "aceita_pet": True, "proprietario": "Carlos Mendes", "telefone_prop": "(11) 99999-1111", "foto": "https://unsplash.com", "status": "Disponível"},
-            {"id": 102, "titulo": "Casa Espaçosa com Quintal Gourmet", "tipo": "Casa", "bairro": "Tatuapé", "cidade": "São Paulo", "aluguel": 3800.0, "condominio": 0.0, "iptu": 150.0, "quartos": 3, "vagas": 2, "aceita_pet": True, "proprietario": "Fernanda Lima", "telefone_prop": "(11) 98888-2222", "foto": "https://unsplash.com", "status": "Disponível"}
-        ]
-    if "corretores" not in st.session_state:
-        st.session_state.corretores = [{"nome": "Marcelo D'Avila", "creci": "Ativo", "telefone": "(11) 98673-8169", "regiao": "São Paulo"}]
-    if "visitas" not in st.session_state:
-        st.session_state.visitas = []
-    if "contratos" not in st.session_state:
-        st.session_state.contratos = []
+    db = conectar()
+    st.session_state.imoveis = db.table("imoveis").select("*").execute().data
+    st.session_state.corretores = db.table("corretores").select("*").execute().data
+    st.session_state.visitas = db.table("visitas").select("*").execute().data
+    st.session_state.contratos = db.table("contratos").select("*").execute().data
     if "autenticado" not in st.session_state:
         st.session_state.autenticado = False
