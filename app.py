@@ -158,7 +158,6 @@ elif menu == "💰 Fechamento e Comissões (Restrito)":
                 im_sel = opcoes[sel]
                 inq = st.text_input("Nome do Inquilino*")
                 corr = st.selectbox("Corretor", [c["nome"] for c in st.session_state.corretores])
-Use o código com cuidado.
 dt_ass = st.date_input("Data Assinatura", value=date.today())
 dt_vig = st.date_input("Início Vigência", value=date.today())
 perc = st.slider("Comissão (%)", 50, 100, 100)
