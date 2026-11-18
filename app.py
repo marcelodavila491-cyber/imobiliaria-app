@@ -162,7 +162,7 @@ dt_ass = st.date_input("Data Assinatura", value=date.today())
 dt_vig = st.date_input("Início Vigência", value=date.today())
 perc = st.slider("Comissão (%)", 50, 100, 100)
 if st.form_submit_button("Fechar Contrato"):
-if inq:
+    if inq:
 comissao = im_sel["aluguel"] * (perc / 100.0)
 repasse = "Dia 01 do próximo mês" if dt_vig.day <= 20 else "Dia 15 do próximo mês"
 st.session_state.contratos.append({"Imóvel": im_sel["titulo"], "Inquilino": inq, "Corretor": corr, "Assinatura": str(dt_ass), "Vigência": str(dt_vig), "Comissão (R$)": comissao, "Repasse": repasse})
