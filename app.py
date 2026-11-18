@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import urllib.parse
 from dados import NOME_EMPRESA, WHATSAPP_NUMERO, SENHA_ADMIN, ESTILO_CSS, iniciar_banco, conectar
 
@@ -22,6 +22,14 @@ def verificar_senha():
         st.rerun()
     return False
 
+def salvar_fotos(arquivos):
+    urls = []
+    for arq in arquivos:
+        nome = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_{arq.name.replace(' ', '_')}"
+        db.storage.from_("fotos-imoveis").upload(nome, arq.getvalue(), {"content-type": arq.type})
+        urls.append(db.storage.from_("fotos-imoveis").get_public_url(nome))
+    return urls
+
 if menu == "🔍 Vitrine":
     st.title(f"🏢 {NOME_EMPRESA} — Encontre seu imóvel")
     c1, c2, c3 = st.columns(3)
@@ -41,7 +49,14 @@ if menu == "🔍 Vitrine":
         col = cols[idx % 2]
         idx += 1
         col.markdown('<div class="card-imovel">', unsafe_allow_html=True)
-        col.image(im["foto"], use_container_width=True)
+
+        lista_fotos = im.get("fotos") or ([im["foto"]] if im.get("foto") else [])
+        if lista_fotos:
+            col.image(lista_fotos[0], use_container_width=True)
+            if len(lista_fotos) > 1:
+                with col.expander(f"📸 Ver todas as {len(lista_fotos)} fotos"):
+                    st.image(lista_fotos, use_container_width=True)
+
         col.subheader(im["titulo"])
         col.write(f"📍 {im['bairro']}, {im['cidade']} | 🛏️ {im['quartos']} quartos | 🚗 {im['vagas']} vagas")
         col.markdown(f"<div class='preco'>Total: R$ {total:,.2f} /mês</div>", unsafe_allow_html=True)
@@ -77,10 +92,11 @@ elif menu == "➕ Cadastrar Imóvel" and verificar_senha():
         alu = v1.number_input("Aluguel*", 100.0, 50000.0, 2000.0, 50.0)
         cond = v2.number_input("Condomínio", 0.0, 20000.0, 400.0, 10.0)
         iptu = v3.number_input("IPTU", 0.0, 10000.0, 50.0, 10.0)
-        foto_url = st.text_input("Link da Foto", value="https://unsplash.com")
-        if st.form_submit_button("Publicar") and pn and tit and bairro:
-            db.table("imoveis").insert({"titulo": tit, "tipo": tipo, "bairro": bairro, "cidade": cidade, "aluguel": alu, "condominio": cond, "iptu": iptu, "quartos": q, "vagas": v, "aceita_pet": pet, "proprietario": pn, "telefone_prop": pt, "foto": foto_url, "status": "Disponível"}).execute()
-            st.success("Imóvel salvo no banco de dados!")
+        arquivos = st.file_uploader("Selecionar Fotos do Celular/PC (pode escolher várias)*", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True)
+        if st.form_submit_button("Publicar Imóvel") and pn and tit and bairro:
+            urls = salvar_fotos(arquivos) if arquivos else ["https://unsplash.com"]
+            db.table("imoveis").insert({"titulo": tit, "tipo": tipo, "bairro": bairro, "cidade": cidade, "aluguel": alu, "condominio": cond, "iptu": iptu, "quartos": q, "vagas": v, "aceita_pet": pet, "proprietario": pn, "telefone_prop": pt, "foto": urls[0], "fotos": urls, "status": "Disponível"}).execute()
+            st.success("Imóvel e fotos salvos com sucesso!")
             st.rerun()
 
 elif menu == "👔 Corretores e Visitas" and verificar_senha():
